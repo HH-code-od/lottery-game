@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D写实版刮福彩游戏</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#e63946',
+                        secondary: '#f1faee',
+                        accent: '#a8dadc',
+                        dark: '#1d3557',
+                        gold: '#ffd700',
+                        'gold-light': '#ffed4e',
+                        'red-dark': '#c1121f',
+                        'red-light': '#f44336',
+                    },
+                    fontFamily: {
+                        sans: ['Arial', 'sans-serif'],
+                        serif: ['"Times New Roman"', 'serif'],
+                    },
+                    boxShadow: {
+                        '3d': '0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1)',
+                        '3d-hover': '0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+                    },
+                    animation: {
+                        'spin-slow': 'spin 3s linear infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                        'pulse-slow': 'pulse 3s infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow {
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            }
+            .text-shadow-lg {
+                text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+            }
+            .lottery-shadow {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+            }
+            .lottery-shadow-hover {
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            }
+            .metal-effect {
+                background: linear-gradient(145deg, #c0c0c0, #e8e8e8);
+            }
+            .gold-effect {
+                background: linear-gradient(145deg, #ffd700, #ffed4e);
+            }
+            .red-effect {
+                background: linear-gradient(145deg, #c1121f, #f44336);
+            }
+            .glass-effect {
+                background: rgba(255, 255, 255, 0.25);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(4px);
+                border: 1px solid rgba(255, 255, 255, 0.18);
+            }
+            .perspective {
+                perspective: 1000px;
+            }
+            .preserve-3d {
+                transform-style: preserve-3d;
+            }
+            .rotate-y-10 {
+                transform: rotateY(10deg);
+            }
+            .rotate-y-0 {
+                transform: rotateY(0deg);
+            }
+            .transition-3d {
+                transition: transform 0.5s ease;
+            }
+            .刮刮卡区域 {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                overflow: hidden;
+                cursor: grab;
+            }
+            .刮刮卡区域:active {
+                cursor: grabbing;
+            }
+            .刮刮卡底层 {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 28px;
+                font-weight: bold;
+                color: #ffd700;
+                text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5);
+                z-index: 1;
+                background: rgba(0, 0, 0, 0.95);
+                border-radius: 8px;
+                overflow: hidden;
+            }
+            .刮刮卡涂层 {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: #d4af37;
+                z-index: 2;
+                transition: opacity 0.3s ease;
+                border-radius: 8px;
+                opacity: 1;
+                border: 2px solid #d4af37;
+                pointer-events: none;
+            }
+            .刮刮卡画布 {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+                z-index: 3;
+                cursor: grab;
+            }
+            .刮刮卡画布:active {
+                cursor: grabbing;
+            }
+            .记录项 {
+                transition: all 0.3s ease;
+            }
+            .记录项:hover {
+                transform: translateX(5px);
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+            .中奖动画 {
+                animation: 中奖闪烁 1s ease-in-out infinite alternate;
+            }
+            @keyframes 中奖闪烁 {
+                from {
+                    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #ffd700, 0 0 20px #ffd700;
+                }
+                to {
+                    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #ffd700, 0 0 40px #ffd700;
+                }
+            }
+            .硬币动画 {
+                animation: 硬币旋转 1s ease-in-out;
+            }
+            @keyframes 硬币旋转 {
+                0% {
+                    transform: rotateY(0deg) scale(1);
+                }
+                50% {
+                    transform: rotateY(180deg) scale(1.2);
+                }
+                100% {
+                    transform: rotateY(360deg) scale(1);
+                }
+            }
+            .背景图案 {
+                background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-red-dark to-red-light min-h-screen font-sans text-white background图案">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 顶部标题 -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-gold text-shadow-lg mb-2">3D写实版刮福彩</h1>
+            <p class="text-xl text-gold-light">试试你的运气，刮出好彩头！</p>
+            <div class="mt-4 bg-gradient-to-r from-gold to-gold-light p-3 rounded-full inline-block">
+                <span class="text-dark font-bold text-lg md:text-xl">最高大奖 1,000,000 元</span>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- 左侧：刮奖区域 -->
+            <div class="lg:w-2/3 perspective">
+                <div id="刮奖区" class="bg-dark rounded-xl p-6 glass-effect preserve-3d transition-3d rotate-y-10 hover:rotate-y-0">
+                    <div class="text-center mb-4">
+                        <h2 class="text-2xl font-bold text-gold" id="当前彩票名称">请选择一张彩票开始刮奖</h2>
+                        <p class="text-accent" id="当前彩票价格"></p>
+                    </div>
+                    
+                    <div class="刮刮卡容器 relative mx-auto max-w-md aspect-[4/3] bg-dark rounded-lg overflow-hidden lottery-shadow transition-all duration-300 hover:lottery-shadow-hover" id="刮刮卡容器">
+                        <!-- 彩票图片 -->
+                        <div id="彩票图片" class="absolute inset-0 w-full h-full bg-cover bg-center opacity-0 transition-opacity duration-300">
+                            <!-- 彩票图片将通过JS动态设置 -->
+                        </div>
+                        
+                        <!-- 刮刮卡区域 -->
+                        <div class="刮刮卡区域 absolute bottom-1/4 left-1/2 transform -translate-x-1/2 w-3/4 h-1/4 bg-white/10 rounded-lg">
+                            <div class="刮刮卡底层" id="刮刮卡底层">
+                                <!-- 中奖信息将通过JS动态设置 -->
+                            </div>
+                            <canvas class="刮刮卡画布" id="刮刮卡画布"></canvas>
+                            <div class="刮刮卡涂层" id="刮刮卡涂层"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button id="新刮一张" class="bg-gold hover:bg-gold-light text-dark font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa fa-refresh mr-2"></i>新刮一张
+                        </button>
+                        <button id="全部刮开" class="bg-accent hover:bg-blue-400 text-dark font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-opacity-50 ml-4 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa fa-magic mr-2"></i>全部刮开
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：资金和记录区域 -->
+            <div class="lg:w-1/3">
+                <!-- 资金显示 -->
+                <div class="bg-dark rounded-xl p-6 mb-6 glass-effect">
+                    <h3 class="text-2xl font-bold text-gold mb-4 flex items-center">
+                        <i class="fa fa-money mr-2"></i>我的资金
+                    </h3>
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xl">当前余额：</span>
+                        <span id="当前余额" class="text-3xl font-bold text-gold">100</span>
+                        <span class="text-xl">元</span>
+                    </div>
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xl">银行卡余额：</span>
+                        <span id="银行卡余额" class="text-3xl font-bold text-blue-400">500</span>
+                        <span class="text-xl">元</span>
+                    </div>
+                    <div class="mt-4">
+                        <button id="充值按钮" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 w-full">
+                            <i class="fa fa-plus-circle mr-2"></i>充值100元
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 彩票选择 -->
+                <div class="bg-dark rounded-xl p-6 mb-6 glass-effect">
+                    <h3 class="text-2xl font-bold text-gold mb-4 flex items-center">
+                        <i class="fa fa-list mr-2"></i>选择彩票
+                    </h3>
+                    <div class="grid grid-cols-1 gap-3" id="彩票选择区">
+                        <!-- 彩票选项将通过JS动态生成 -->
+                    </div>
+                </div>
+
+                <!-- 消费记录 -->
+                <div class="bg-dark rounded-xl p-6 glass-effect">
+                    <h3 class="text-2xl font-bold text-gold mb-4 flex items-center">
+                        <i class="fa fa-history mr-2"></i>消费记录
+                    </h3>
+                    <div class="max-h-60 overflow-y-auto pr-2" id="消费记录区">
+                        <div class="text-center text-gray-400 py-4" id="空记录提示">暂无消费记录</div>
+                        <!-- 消费记录将通过JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 中奖弹窗 -->
+        <div id="中奖弹窗" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+            <div class="absolute inset-0 bg-black bg-opacity-70"></div>
+            <div class="bg-dark rounded-xl p-8 max-w-md w-full mx-4 glass-effect preserve-3d transform transition-all duration-500 scale-95 opacity-0" id="中奖弹窗内容">
+                <div class="text-center">
+                    <h3 class="text-3xl font-bold text-gold mb-4中奖动画">恭喜中奖！</h3>
+                    <p class="text-xl mb-2">您购买的 <span id="中奖彩票名称" class="font-bold text-accent"></span></p>
+                    <p class="text-2xl mb-6">中奖金额：<span id="中奖金额" class="font-bold text-gold text-4xl"></span> 元</p>
+                    <div class="flex justify-center mb-6">
+                        <div class="relative w-32 h-32">
+                            <div class="absolute inset-0 bg-gold rounded-full animate-ping opacity-75"></div>
+                            <div class="relative bg-gold rounded-full flex items-center justify-center h-full">
+                                <i class="fa fa-trophy text-5xl text-dark"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="关闭中奖弹窗" class="bg-gold hover:bg-gold-light text-dark font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-opacity-50">
+                        领取奖金
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 支付弹窗 -->
+        <div id="支付弹窗" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+            <div class="absolute inset-0 bg-black bg-opacity-70"></div>
+            <div class="bg-dark rounded-xl p-8 max-w-md w-full mx-4 glass-effect preserve-3d transform transition-all duration-500 scale-95 opacity-0" id="支付弹窗内容">
+                <div class="text-center">
+                    <h3 class="text-2xl font-bold text-gold mb-4">支付确认</h3>
+                    <p class="text-xl mb-6">充值金额：<span class="font-bold text-gold">100元</span></p>
+                    
+                    <!-- 二维码区域 -->
+                    <div class="flex items-center justify-center mb-6">
+                        <div class="w-40 h-40 bg-white p-2 rounded-lg">
+                            <img id="二维码图片" src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/75f13a92770c454188d558c64957697b~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=2026020217543035FC5723751F573EEC88&rrcfp=f06b921b&x-expires=1772618087&x-signature=W%2FpMZ5tPz2%2BDi94yE%2F%2F1%2FvlBfzU%3D" alt="支付二维码" class="w-full h-full object-cover">
+                        </div>
+                        <button id="手机扫码按钮" class="ml-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300">
+                            <i class="fa fa-mobile text-2xl mr-2"></i>手机扫码
+                        </button>
+                    </div>
+                    
+                    <!-- 银行选择 -->
+                    <div class="mb-6">
+                        <p class="text-lg mb-3">选择支付银行：</p>
+                        <div id="银行选择区" class="grid grid-cols-3 gap-2">
+                            <button class="bg-dark hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 border border-gray-600">工商银行</button>
+                            <button class="bg-dark hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 border border-gray-600">建设银行</button>
+                            <button class="bg-dark hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 border border-gray-600">农业银行</button>
+                            <button class="bg-dark hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 border border-gray-600">中国银行</button>
+                            <button class="bg-dark hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 border border-gray-600">招商银行</button>
+                            <button class="bg-dark hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 border border-gray-600">支付宝</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-center gap-4">
+                        <button id="取消支付按钮" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50">
+                            取消
+                        </button>
+                        <button id="确认支付按钮" class="bg-gold hover:bg-gold-light text-dark font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-opacity-50 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                            确认支付
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 游戏结束弹窗 -->
+        <div id="游戏结束弹窗" class="fixed inset-0 flex items-center justify-center z-50 hidden">
+            <div class="absolute inset-0 bg-black bg-opacity-80"></div>
+            <div class="bg-dark rounded-xl p-8 max-w-2xl w-full mx-4 glass-effect preserve-3d transform transition-all duration-500 scale-95 opacity-0" id="游戏结束弹窗内容">
+                <div class="text-center">
+                    <h3 class="text-3xl font-bold text-gold mb-6">游戏结束</h3>
+                    
+                    <!-- 统计信息 -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-dark/50 p-4 rounded-lg">
+                            <p class="text-lg text-gray-300 mb-2">总消费金额</p>
+                            <p id="总消费金额" class="text-3xl font-bold text-red-400">0</p>
+                        </div>
+                        <div class="bg-dark/50 p-4 rounded-lg">
+                            <p class="text-lg text-gray-300 mb-2">总中奖金额</p>
+                            <p id="总中奖金额" class="text-3xl font-bold text-green-400">0</p>
+                        </div>
+                        <div class="bg-dark/50 p-4 rounded-lg">
+                            <p class="text-lg text-gray-300 mb-2">净收益</p>
+                            <p id="净收益" class="text-3xl font-bold text-green-400">0</p>
+                        </div>
+                    </div>
+                    
+                    <!-- 交易趋势图 -->
+                    <div class="mb-8">
+                        <h4 class="text-xl font-bold text-gold mb-4">交易趋势</h4>
+                        <div class="bg-dark/50 p-4 rounded-lg">
+                            <canvas id="交易趋势图" width="400" height="200" class="w-full h-auto"></canvas>
+                        </div>
+                    </div>
+                    
+                    <button id="重新开始按钮" class="bg-gold hover:bg-gold-light text-dark font-bold py-3 px-8 rounded-full transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gold focus:ring-opacity-50">
+                        <i class="fa fa-refresh mr-2"></i>重新开始
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 彩票数据
+        const 彩票数据 = [
+            {
+                id: 1,
+                名称: "福马迎春",
+                价格: 5,
+                图片: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/3489e4a4a6244613985e92ba7f5b482c~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=2026020217543035FC5723751F573EEC88&rrcfp=f06b921b&x-expires=1772618086&x-signature=dW3XBKMNksUr4HPKWqov27M7bkA%3D",
+                中奖概率: {
+                    0: 0.7,    // 70%概率不中奖
+                    5: 0.2,    // 20%概率中5元
+                    10: 0.07,  // 7%概率中10元
+                    20: 0.02,  // 2%概率中20元
+                    50: 0.008, // 0.8%概率中50元
+                    100: 0.002 // 0.2%概率中100元
+                }
+            },
+            {
+                id: 2,
+                名称: "马年大吉",
+                价格: 10,
+                图片: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/634614cd3bfa488ca10f2d954983c187~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=2026020217543035FC5723751F573EEC88&rrcfp=f06b921b&x-expires=1772618084&x-signature=SSYIGF2erAid0UqxlvN6gt7uxeU%3D",
+                中奖概率: {
+                    0: 0.65,    // 65%概率不中奖
+                    10: 0.2,    // 20%概率中10元
+                    20: 0.1,    // 10%概率中20元
+                    50: 0.03,   // 3%概率中50元
+                    100: 0.015, // 1.5%概率中100元
+                    200: 0.005  // 0.5%概率中200元
+                }
+            },
+            {
+                id: 3,
+                名称: "马到福来",
+                价格: 20,
+                图片: "https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/a247bd9b8593428db81b1443a0a03d10~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=2026020217543035FC5723751F573EEC88&rrcfp=f06b921b&x-expires=1772618084&x-signature=8dXeit8L68UW6i09atuhqI%2FnSaY%3D",
+                中奖概率: {
+                    0: 0.6,     // 60%概率不中奖
+                    20: 0.2,    // 20%概率中20元
+                    50: 0.12,   // 12%概率中50元
+                    100: 0.05,  // 5%概率中100元
+                    200: 0.025, // 2.5%概率中200元
+                    500: 0.005  // 0.5%概率中500元
+                }
+            },
+            {
+                id: 4,
+                名称: "鸿运当头",
+                价格: 30,
+                图片: "https://p9-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/1d6ac6d5f7ee4c96ba1e8441d335cf7b~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=2026020217543035FC5723751F573EEC88&rrcfp=f06b921b&x-expires=1772618086&x-signature=2SOO7QAVydtTsXiUIwivPVH2I7Q%3D",
+                中奖概率: {
+                    0: 0.55,     // 55%概率不中奖
+                    30: 0.2,     // 20%概率中30元
+                    50: 0.1,     // 10%概率中50元
+                    100: 0.08,   // 8%概率中100元
+                    300: 0.05,   // 5%概率中300元
+                    500: 0.015,  // 1.5%概率中500元
+                    1000: 0.005  // 0.5%概率中1000元
+                }
+            },
+            {
+                id: 5,
+                名称: "骏马迎春",
+                价格: 50,
+                图片: "https://p9-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/rc/pc/super_tool/d0ffaa270d1049c8841b542d4a2d01a3~tplv-a9rns2rl98-image.image?lk3s=8e244e95&rcl=2026020217543035FC5723751F573EEC88&rrcfp=f06b921b&x-expires=1772618084&x-signature=3R8%2FcNvz67ZQ9t1qQPcmb%2Ba01dY%3D",
+                中奖概率: {
+                    0: 0.5,        // 50%概率不中奖
+                    50: 0.2,       // 20%概率中50元
+                    100: 0.15,     // 15%概率中100元
+                    500: 0.08,     // 8%概率中500元
+                    1000: 0.05,    // 5%概率中1000元
+                    5000: 0.015,   // 1.5%概率中5000元
+                    10000: 0.0049, // 0.49%概率中10000元
+                    1000000: 0.0001 // 0.01%概率中100万元
+                }
+            }
+        ];
+
+        // 游戏状态
+        let 游戏状态 = {
+            当前余额: 100,
+            银行卡余额: 500,
+            当前彩票: null,
+            消费记录: [],
+            刮刮卡状态: '未开始', // 未开始, 刮ing, 已完成
+            刮刮卡画布: null,
+            刮刮卡上下文: null,
+            刮刮卡涂层: null,
+            中奖金额: 0
+        };
+
+        // DOM元素
+        const 元素 = {
+            当前余额: document.getElementById('当前余额'),
+            银行卡余额: document.getElementById('银行卡余额'),
+            彩票选择区: document.getElementById('彩票选择区'),
+            消费记录区: document.getElementById('消费记录区'),
+            空记录提示: document.getElementById('空记录提示'),
+            当前彩票名称: document.getElementById('当前彩票名称'),
+            当前彩票价格: document.getElementById('当前彩票价格'),
+            彩票图片: document.getElementById('彩票图片'),
+            刮刮卡底层: document.getElementById('刮刮卡底层'),
+            刮刮卡画布: document.getElementById('刮刮卡画布'),
+            刮刮卡涂层: document.getElementById('刮刮卡涂层'),
+            刮刮卡容器: document.getElementById('刮刮卡容器'),
+            新刮一张按钮: document.getElementById('新刮一张'),
+            全部刮开按钮: document.getElementById('全部刮开'),
+            充值按钮: document.getElementById('充值按钮'),
+            中奖弹窗: document.getElementById('中奖弹窗'),
+            中奖弹窗内容: document.getElementById('中奖弹窗内容'),
+            中奖彩票名称: document.getElementById('中奖彩票名称'),
+            中奖金额: document.getElementById('中奖金额'),
+            关闭中奖弹窗: document.getElementById('关闭中奖弹窗'),
+            支付弹窗: document.getElementById('支付弹窗'),
+            支付弹窗内容: document.getElementById('支付弹窗内容'),
+            二维码图片: document.getElementById('二维码图片'),
+            手机扫码按钮: document.getElementById('手机扫码按钮'),
+            银行选择区: document.getElementById('银行选择区'),
+            确认支付按钮: document.getElementById('确认支付按钮'),
+            取消支付按钮: document.getElementById('取消支付按钮'),
+            游戏结束弹窗: document.getElementById('游戏结束弹窗'),
+            游戏结束弹窗内容: document.getElementById('游戏结束弹窗内容'),
+            总消费金额: document.getElementById('总消费金额'),
+            总中奖金额: document.getElementById('总中奖金额'),
+            净收益: document.getElementById('净收益'),
+            交易趋势图: document.getElementById('交易趋势图'),
+            重新开始按钮: document.getElementById('重新开始按钮')
+        };
+
+        // 初始化游戏
+        function 初始化游戏() {
+            生成彩票选择区();
+            初始化刮刮卡();
+            绑定事件();
+            更新余额显示();
+        }
+
+        // 生成彩票选择区
+        function 生成彩票选择区() {
+            元素.彩票选择区.innerHTML = '';
+            彩票数据.forEach(彩票 => {
+                const 彩票元素 = document.createElement('div');
+                彩票元素.className = 'flex items-center justify-between bg-dark/50 hover:bg-dark p-3 rounded-lg transition-all duration-300 cursor-pointer border border-transparent hover:border-gold';
+                彩票元素.dataset.id = 彩票.id;
+                
+                彩票元素.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-cover bg-center rounded-md overflow-hidden mr-3" style="background-image: url('${彩票.图片}')"></div>
+                        <div>
+                            <div class="font-bold">${彩票.名称}</div>
+                            <div class="text-sm text-gray-400">${彩票.价格}元</div>
+                        </div>
+                    </div>
+                    <button class="bg-gold hover:bg-gold-light text-dark font-bold py-1 px-4 rounded-full text-sm transition-all duration-300">
+                        购买
+                    </button>
+                `;
+                
+                彩票元素.addEventListener('click', () => 选择彩票(彩票));
+                元素.彩票选择区.appendChild(彩票元素);
+            });
+        }
+
+        // 初始化刮刮卡
+        function 初始化刮刮卡() {
+            const 画布 = 元素.刮刮卡画布;
+            const 容器 = 元素.刮刮卡容器;
+            const 刮刮卡区域 = 容器.querySelector('.刮刮卡区域');
+            
+            // 设置画布尺寸
+            function 设置画布尺寸() {
+                画布.width = 刮刮卡区域.offsetWidth;
+                画布.height = 刮刮卡区域.offsetHeight;
+            }
+            
+            设置画布尺寸();
+            window.addEventListener('resize', 设置画布尺寸);
+            
+            游戏状态.刮刮卡画布 = 画布;
+            游戏状态.刮刮卡上下文 = 画布.getContext('2d');
+            游戏状态.刮刮卡涂层 = 元素.刮刮卡涂层;
+            
+            // 初始化画布
+            const ctx = 游戏状态.刮刮卡上下文;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, 画布.width, 画布.height);
+            ctx.globalCompositeOperation = 'destination-out';
+            
+            // 确保涂层完全覆盖
+            元素.刮刮卡涂层.style.opacity = '1';
+            
+            // 设置正确的层级关系
+            画布.style.zIndex = '3';
+            元素.刮刮卡涂层.style.zIndex = '2';
+            元素.刮刮卡底层.style.zIndex = '1';
+        }
+
+        // 绑定事件
+        function 绑定事件() {
+            // 新刮一张按钮
+            元素.新刮一张按钮.addEventListener('click', () => {
+                if (游戏状态.当前彩票) {
+                    // 检查余额是否足够
+                    if (游戏状态.当前余额 < 游戏状态.当前彩票.价格) {
+                        alert('余额不足，请先充值！');
+                        检查游戏结束();
+                        return;
+                    }
+                    
+                    // 扣除余额
+                    游戏状态.当前余额 -= 游戏状态.当前彩票.价格;
+                    更新余额显示();
+                    
+                    // 记录消费
+                    添加消费记录(`购买${游戏状态.当前彩票.名称}`, -游戏状态.当前彩票.价格);
+                    
+                    // 开始刮奖
+                    开始刮奖(游戏状态.当前彩票);
+                }
+            });
+            
+            // 全部刮开按钮
+            元素.全部刮开按钮.addEventListener('click', () => {
+                if (游戏状态.刮刮卡状态 === '刮ing') {
+                    全部刮开();
+                }
+            });
+            
+            // 充值按钮
+            元素.充值按钮.addEventListener('click', () => {
+                充值(100);
+            });
+            
+            // 关闭中奖弹窗
+            元素.关闭中奖弹窗.addEventListener('click', () => {
+                关闭中奖弹窗();
+            });
+            
+            // 支付弹窗事件
+            元素.取消支付按钮.addEventListener('click', () => {
+                关闭支付弹窗();
+            });
+            
+            元素.确认支付按钮.addEventListener('click', () => {
+                确认支付();
+            });
+            
+            // 手机扫码按钮
+            元素.手机扫码按钮.addEventListener('click', () => {
+                // 模拟扫码效果
+                元素.手机扫码按钮.disabled = true;
+                元素.手机扫码按钮.textContent = '扫码中...';
+                
+                setTimeout(() => {
+                    元素.手机扫码按钮.textContent = '扫码成功';
+                    元素.手机扫码按钮.classList.remove('bg-blue-500');
+                    元素.手机扫码按钮.classList.add('bg-green-500');
+                    
+                    // 自动选择一个银行
+                    const 银行列表 = 元素.银行选择区.querySelectorAll('button');
+                    const 随机银行 = 银行列表[Math.floor(Math.random() * 银行列表.length)];
+                    银行列表.forEach(银行 => 银行.classList.remove('bg-gold', 'text-dark'));
+                    随机银行.classList.add('bg-gold', 'text-dark');
+                    
+                    // 启用确认支付按钮
+                    元素.确认支付按钮.disabled = false;
+                }, 2000);
+            });
+            
+            // 银行选择
+            元素.银行选择区.querySelectorAll('button').forEach(银行 => {
+                银行.addEventListener('click', () => {
+                    // 移除其他银行的选中状态
+                    元素.银行选择区.querySelectorAll('button').forEach(b => {
+                        b.classList.remove('bg-gold', 'text-dark');
+                    });
+                    
+                    // 设置当前银行的选中状态
+                    银行.classList.add('bg-gold', 'text-dark');
+                    
+                    // 启用确认支付按钮
+                    元素.确认支付按钮.disabled = false;
+                });
+            });
+            
+            // 重新开始按钮
+            元素.重新开始按钮.addEventListener('click', () => {
+                // 重置游戏状态
+                游戏状态.当前余额 = 100;
+                游戏状态.银行卡余额 = 500;
+                游戏状态.消费记录 = [];
+                游戏状态.当前彩票 = null;
+                游戏状态.刮刮卡状态 = '未开始';
+                游戏状态.中奖金额 = 0;
+                
+                // 重置界面
+                更新余额显示();
+                更新消费记录显示();
+                元素.当前彩票名称.textContent = '请选择一张彩票开始刮奖';
+                元素.当前彩票价格.textContent = '';
+                元素.彩票图片.style.opacity = '0';
+                重置刮刮卡();
+                
+                // 关闭游戏结束弹窗
+                元素.游戏结束弹窗.classList.add('hidden');
+                
+                // 重新生成彩票选择区
+                生成彩票选择区();
+            });
+            
+            // 刮刮卡事件
+            绑定刮刮卡事件();
+        }
+
+        // 绑定刮刮卡事件
+        function 绑定刮刮卡事件() {
+            const 画布 = 游戏状态.刮刮卡画布;
+            const ctx = 游戏状态.刮刮卡上下文;
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+            
+            // 设置画笔样式
+            ctx.lineWidth = 25;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // 开始刮动
+            function 开始刮动(e) {
+                if (游戏状态.刮刮卡状态 !== '刮ing') return;
+                
+                isDrawing = true;
+                const pos = 获取鼠标位置(e);
+                lastX = pos.x;
+                lastY = pos.y;
+            }
+            
+            // 刮动中
+            function 刮动中(e) {
+                if (!isDrawing || 游戏状态.刮刮卡状态 !== '刮ing') return;
+                
+                const pos = 获取鼠标位置(e);
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                lastX = pos.x;
+                lastY = pos.y;
+                
+                // 检查刮开面积
+                检查刮开面积();
+            }
+            
+            // 结束刮动
+            function 结束刮动() {
+                isDrawing = false;
+            }
+            
+            // 获取鼠标/触摸位置
+            function 获取鼠标位置(e) {
+                const rect = 画布.getBoundingClientRect();
+                let x, y;
+                
+                if (e.type.includes('touch')) {
+                    e.preventDefault();
+                    x = e.touches[0].clientX - rect.left;
+                    y = e.touches[0].clientY - rect.top;
+                } else {
+                    x = e.clientX - rect.left;
+                    y = e.clientY - rect.top;
+                }
+                
+                return { x, y };
+            }
+            
+            // 绑定事件到刮刮卡区域，确保即使在涂层上也能触发
+            const 刮刮卡区域 = 元素.刮刮卡容器.querySelector('.刮刮卡区域');
+            
+            // 鼠标事件
+            刮刮卡区域.addEventListener('mousedown', 开始刮动);
+            刮刮卡区域.addEventListener('mousemove', 刮动中);
+            刮刮卡区域.addEventListener('mouseup', 结束刮动);
+            刮刮卡区域.addEventListener('mouseout', 结束刮动);
+            
+            // 触摸事件
+            刮刮卡区域.addEventListener('touchstart', 开始刮动);
+            刮刮卡区域.addEventListener('touchmove', 刮动中);
+            刮刮卡区域.addEventListener('touchend', 结束刮动);
+            
+            // 防止触摸事件的默认行为
+            刮刮卡区域.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+            }, { passive: false });
+        }
+
+        // 选择彩票
+        function 选择彩票(彩票) {
+            if (游戏状态.当前余额 < 彩票.价格) {
+                alert('余额不足，请先充值！');
+                检查游戏结束();
+                return;
+            }
+            
+            // 扣除余额
+            游戏状态.当前余额 -= 彩票.价格;
+            更新余额显示();
+            
+            // 记录消费
+            添加消费记录(`购买${彩票.名称}`, -彩票.价格);
+            
+            // 设置当前彩票
+            游戏状态.当前彩票 = 彩票;
+            
+            // 更新界面
+            元素.当前彩票名称.textContent = `${彩票.价格}元"${彩票.名称}"`;
+            元素.当前彩票价格.textContent = `价格：${彩票.价格}元`;
+            元素.彩票图片.style.backgroundImage = `url('${彩票.图片}')`;
+            元素.彩票图片.style.opacity = '1';
+            
+            // 开始刮奖
+            开始刮奖(彩票);
+            
+            // 高亮选中的彩票
+            document.querySelectorAll('#彩票选择区 > div').forEach(el => {
+                el.classList.remove('border-gold', 'bg-dark');
+                el.classList.add('border-transparent', 'bg-dark/50');
+            });
+            document.querySelector(`#彩票选择区 > div[data-id="${彩票.id}"]`).classList.remove('border-transparent', 'bg-dark/50');
+            document.querySelector(`#彩票选择区 > div[data-id="${彩票.id}"]`).classList.add('border-gold', 'bg-dark');
+        }
+
+        // 开始刮奖
+        function 开始刮奖(彩票) {
+            // 重置刮刮卡
+            重置刮刮卡();
+            
+            // 设置游戏状态
+            游戏状态.刮刮卡状态 = '刮ing';
+            
+            // 计算中奖金额
+            游戏状态.中奖金额 = 计算中奖金额(彩票);
+            
+            // 设置中奖信息
+            if (游戏状态.中奖金额 > 0) {
+                元素.刮刮卡底层.innerHTML = `<span class="text-red-500 font-bold text-2xl">恭喜中奖 ¥${游戏状态.中奖金额}</span>`;
+            } else {
+                元素.刮刮卡底层.innerHTML = '<span class="text-gray-500">感谢参与</span>';
+            }
+            
+            // 启用按钮
+            元素.全部刮开按钮.disabled = false;
+        }
+
+        // 重置刮刮卡
+        function 重置刮刮卡() {
+            const ctx = 游戏状态.刮刮卡上下文;
+            const 画布 = 游戏状态.刮刮卡画布;
+            
+            // 重置画布
+            ctx.clearRect(0, 0, 画布.width, 画布.height);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, 画布.width, 画布.height);
+            
+            // 确保涂层完全覆盖
+            游戏状态.刮刮卡涂层.style.opacity = '1';
+            游戏状态.刮刮卡涂层.style.display = 'block';
+            
+            // 重置状态
+            游戏状态.刮刮卡状态 = '未开始';
+            游戏状态.中奖金额 = 0;
+            
+            // 禁用按钮
+            元素.全部刮开按钮.disabled = true;
+        }
+
+        // 计算中奖金额
+        function 计算中奖金额(彩票) {
+            const 随机数 = Math.random();
+            let 累计概率 = 0;
+            
+            for (const [金额, 概率] of Object.entries(彩票.中奖概率)) {
+                累计概率 += 概率;
+                if (随机数 <= 累计概率) {
+                    return parseInt(金额);
+                }
+            }
+            
+            return 0; // 默认不中奖
+        }
+
+        // 检查刮开面积
+        function 检查刮开面积() {
+            const ctx = 游戏状态.刮刮卡上下文;
+            const 画布 = 游戏状态.刮刮卡画布;
+            
+            // 为了提高性能，只在一定间隔后检查
+            if (!检查刮开面积.lastCheck || Date.now() - 检查刮开面积.lastCheck > 200) {
+                检查刮开面积.lastCheck = Date.now();
+                
+                try {
+                    const 像素数据 = ctx.getImageData(0, 0, 画布.width, 画布.height).data;
+                    let 透明像素数 = 0;
+                    const 总像素数 = 画布.width * 画布.height;
+                    
+                    // 计算透明像素数量（为了提高性能，我们可以采样而不是检查每个像素）
+                    const 采样间隔 = 4; // 每隔几个像素检查一次
+                    for (let i = 3; i < 像素数据.length; i += 4 * 采样间隔) {
+                        if (像素数据[i] === 0) { // alpha通道为0表示完全透明
+                            透明像素数 += 采样间隔;
+                        }
+                    }
+                    
+                    // 计算刮开比例
+                    const 刮开比例 = 透明像素数 / 总像素数;
+                    
+                    // 如果刮开超过35%，自动完成刮奖
+                    if (刮开比例 > 0.35) {
+                        完成刮奖();
+                    }
+                } catch (e) {
+                    console.error('检查刮开面积时出错:', e);
+                }
+            }
+        }
+
+        // 全部刮开
+        function 全部刮开() {
+            const ctx = 游戏状态.刮刮卡上下文;
+            const 画布 = 游戏状态.刮刮卡画布;
+            
+            // 使用动画效果逐渐清除画布
+            let 清除进度 = 0;
+            const 清除动画 = setInterval(() => {
+                清除进度 += 0.1;
+                if (清除进度 >= 1) {
+                    clearInterval(清除动画);
+                    // 清除整个画布
+                    ctx.clearRect(0, 0, 画布.width, 画布.height);
+                    // 隐藏涂层
+                    游戏状态.刮刮卡涂层.style.opacity = '0';
+                    // 完成刮奖
+                    完成刮奖();
+                } else {
+                    // 创建一个随机的清除效果
+                    for (let i = 0; i < 20; i++) {
+                        const x = Math.random() * 画布.width;
+                        const y = Math.random() * 画布.height;
+                        const radius = 10 + Math.random() * 20;
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }, 50);
+        }
+
+        // 完成刮奖
+        function 完成刮奖() {
+            if (游戏状态.刮刮卡状态 !== '刮ing') return;
+            
+            // 更新状态
+            游戏状态.刮刮卡状态 = '已完成';
+            
+            // 隐藏涂层
+            游戏状态.刮刮卡涂层.style.opacity = '0';
+            
+            // 如果中奖，显示中奖弹窗
+            if (游戏状态.中奖金额 > 0) {
+                // 增加余额
+                游戏状态.当前余额 += 游戏状态.中奖金额;
+                更新余额显示();
+                
+                // 记录中奖
+                添加消费记录(`中得${游戏状态.当前彩票.名称}奖金`, 游戏状态.中奖金额);
+                
+                // 显示中奖弹窗
+                显示中奖弹窗();
+            }
+        }
+
+        // 显示中奖弹窗
+        function 显示中奖弹窗() {
+            元素.中奖彩票名称.textContent = `"${游戏状态.当前彩票.名称}"`;
+            元素.中奖金额.textContent = 游戏状态.中奖金额;
+            
+            // 显示弹窗
+            元素.中奖弹窗.classList.remove('hidden');
+            
+            // 添加动画效果
+            setTimeout(() => {
+                元素.中奖弹窗内容.classList.remove('scale-95', 'opacity-0');
+                元素.中奖弹窗内容.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            
+            // 播放中奖音效（如果有）
+            // playWinSound();
+        }
+
+        // 关闭中奖弹窗
+        function 关闭中奖弹窗() {
+            // 添加关闭动画
+            元素.中奖弹窗内容.classList.remove('scale-100', 'opacity-100');
+            元素.中奖弹窗内容.classList.add('scale-95', 'opacity-0');
+            
+            // 隐藏弹窗
+            setTimeout(() => {
+                元素.中奖弹窗.classList.add('hidden');
+            }, 300);
+        }
+
+        // 充值
+        function 充值(金额) {
+            // 检查银行卡余额是否足够
+            if (游戏状态.银行卡余额 < 金额) {
+                alert('银行卡余额不足！');
+                检查游戏结束();
+                return;
+            }
+            
+            // 显示支付弹窗
+            显示支付弹窗(金额);
+        }
+        
+        // 显示支付弹窗
+        function 显示支付弹窗(金额) {
+            // 设置支付金额
+            元素.支付弹窗.dataset.amount = 金额;
+            
+            // 显示弹窗
+            元素.支付弹窗.classList.remove('hidden');
+            
+            // 添加动画效果
+            setTimeout(() => {
+                元素.支付弹窗内容.classList.remove('scale-95', 'opacity-0');
+                元素.支付弹窗内容.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+        
+        // 关闭支付弹窗
+        function 关闭支付弹窗() {
+            // 添加关闭动画
+            元素.支付弹窗内容.classList.remove('scale-100', 'opacity-100');
+            元素.支付弹窗内容.classList.add('scale-95', 'opacity-0');
+            
+            // 隐藏弹窗
+            setTimeout(() => {
+                元素.支付弹窗.classList.add('hidden');
+            }, 300);
+        }
+        
+        // 确认支付
+        function 确认支付() {
+            const 金额 = parseInt(元素.支付弹窗.dataset.amount);
+            
+            // 扣除银行卡余额
+            游戏状态.银行卡余额 -= 金额;
+            
+            // 增加当前余额
+            游戏状态.当前余额 += 金额;
+            
+            // 更新显示
+            更新余额显示();
+            添加消费记录('银行卡充值', 金额);
+            
+            // 添加硬币动画效果
+            元素.当前余额.classList.add('硬币动画');
+            setTimeout(() => {
+                元素.当前余额.classList.remove('硬币动画');
+            }, 1000);
+            
+            // 关闭支付弹窗
+            关闭支付弹窗();
+            
+            // 检查游戏结束条件
+            检查游戏结束();
+        }
+
+        // 更新余额显示
+        function 更新余额显示() {
+            元素.当前余额.textContent = 游戏状态.当前余额;
+            元素.银行卡余额.textContent = 游戏状态.银行卡余额;
+        }
+
+        // 添加消费记录
+        function 添加消费记录(描述, 金额) {
+            const 记录 = {
+                描述,
+                金额,
+                时间: new Date()
+            };
+            
+            游戏状态.消费记录.unshift(记录);
+            
+            // 更新记录显示
+            更新消费记录显示();
+        }
+
+        // 更新消费记录显示
+        function 更新消费记录显示() {
+            if (游戏状态.消费记录.length === 0) {
+                元素.空记录提示.classList.remove('hidden');
+                return;
+            }
+            
+            元素.空记录提示.classList.add('hidden');
+            
+            // 清空记录区
+            while (元素.消费记录区.firstChild) {
+                if (元素.消费记录区.firstChild.id !== '空记录提示') {
+                    元素.消费记录区.removeChild(元素.消费记录区.firstChild);
+                } else {
+                    break;
+                }
+            }
+            
+            // 添加记录
+            游戏状态.消费记录.forEach(记录 => {
+                const 记录元素 = document.createElement('div');
+                记录元素.className = '记录项 flex items-center justify-between py-2 border-b border-gray-700 last:border-0';
+                
+                const 金额颜色 = 记录.金额 > 0 ? 'text-green-400' : 'text-red-400';
+                const 金额符号 = 记录.金额 > 0 ? '+' : '';
+                
+                记录元素.innerHTML = `
+                    <div>
+                        <div>${记录.描述}</div>
+                        <div class="text-xs text-gray-400">${记录.时间.toLocaleTimeString()}</div>
+                    </div>
+                    <div class="${金额颜色} font-bold">${金额符号}${记录.金额}元</div>
+                `;
+                
+                // 插入到空记录提示之前
+                元素.消费记录区.insertBefore(记录元素, 元素.空记录提示);
+            });
+        }
+
+        // 检查游戏结束
+        function 检查游戏结束() {
+            if (游戏状态.当前余额 <= 0 && 游戏状态.银行卡余额 <= 0) {
+                // 游戏结束，显示统计信息
+                显示游戏结束统计();
+            }
+        }
+        
+        // 显示游戏结束统计
+        function 显示游戏结束统计() {
+            // 计算统计数据
+            const 总消费 = 游戏状态.消费记录.filter(r => r.金额 < 0).reduce((sum, r) => sum + Math.abs(r.金额), 0);
+            const 总中奖 = 游戏状态.消费记录.filter(r => r.金额 > 0).reduce((sum, r) => sum + r.金额, 0);
+            const 净收益 = 总中奖 - 总消费;
+            
+            // 设置统计数据
+            元素.总消费金额.textContent = 总消费;
+            元素.总中奖金额.textContent = 总中奖;
+            元素.净收益.textContent = 净收益;
+            元素.净收益.className = 净收益 >= 0 ? 'text-2xl font-bold text-green-400' : 'text-2xl font-bold text-red-400';
+            
+            // 绘制交易趋势图
+            绘制交易趋势图();
+            
+            // 显示游戏结束弹窗
+            元素.游戏结束弹窗.classList.remove('hidden');
+        }
+        
+        // 绘制交易趋势图
+        function 绘制交易趋势图() {
+            const ctx = 元素.交易趋势图.getContext('2d');
+            
+            // 清空画布
+            ctx.clearRect(0, 0, 元素.交易趋势图.width, 元素.交易趋势图.height);
+            
+            if (游戏状态.消费记录.length === 0) return;
+            
+            // 准备数据
+            const 数据 = [];
+            let 当前余额 = 100; // 初始余额
+            
+            数据.push(当前余额);
+            
+            游戏状态.消费记录.forEach(记录 => {
+                当前余额 += 记录.金额;
+                数据.push(当前余额);
+            });
+            
+            // 设置图表样式
+            ctx.strokeStyle = '#ffd700';
+            ctx.lineWidth = 2;
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.1)';
+            
+            // 绘制趋势线
+            const 宽度 = 元素.交易趋势图.width - 40;
+            const 高度 = 元素.交易趋势图.height - 40;
+            const 最大余额 = Math.max(...数据, 100);
+            const 最小余额 = Math.min(...数据, 0);
+            const 余额范围 = 最大余额 - 最小余额 || 1;
+            
+            ctx.beginPath();
+            ctx.moveTo(20, 高度 - ((数据[0] - 最小余额) / 余额范围) * 高度 + 20);
+            
+            for (let i = 1; i < 数据.length; i++) {
+                const x = 20 + (i / (数据.length - 1)) * 宽度;
+                const y = 高度 - ((数据[i] - 最小余额) / 余额范围) * 高度 + 20;
+                ctx.lineTo(x, y);
+            }
+            
+            ctx.stroke();
+            
+            // 绘制填充区域
+            ctx.lineTo(元素.交易趋势图.width - 20, 元素.交易趋势图.height - 20);
+            ctx.lineTo(20, 元素.交易趋势图.height - 20);
+            ctx.closePath();
+            ctx.fill();
+            
+            // 绘制坐标轴
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(20, 20);
+            ctx.lineTo(20, 元素.交易趋势图.height - 20);
+            ctx.lineTo(元素.交易趋势图.width - 20, 元素.交易趋势图.height - 20);
+            ctx.stroke();
+        }
+        
+        // 初始化游戏
+        window.addEventListener('DOMContentLoaded', 初始化游戏);
+    </script>
+</body>
+</html>
